@@ -88,3 +88,15 @@ directory mask = 0777
 force user = pi" >> /etc/samba/smb.conf
 
 smbpasswd -a pi
+
+sudo apt-get install hdparm -y
+
+sudo hdparm -I /dev/sda1 | grep 'Write cache'
+
+# Check that has '*' before 'Write cache'
+sudo echo "
+
+/dev/sda1 {
+write_cache = on
+spindown_time = 120
+}" >> /etc/hdparm.conf
