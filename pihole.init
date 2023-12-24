@@ -100,3 +100,18 @@ sudo echo "
 write_cache = on
 spindown_time = 120
 }" >> /etc/hdparm.conf
+
+sudo echo "
+#!/bin/bash
+set -e
+sudo apt-get update
+sudo apt-get upgrade
+sudo apt-get dist-upgrade" > ~/update.sh
+
+#Alias for fun
+#sudo echo "alias update='yes | sudo ~/update.sh && sudo rm -r ~/etc-pihole/pihole-FTL.db && sudo reboot'" >> ~/.bashrc
+
+
+
+
+
