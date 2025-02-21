@@ -59,8 +59,16 @@ sudo chattr +i /etc/resolv.conf
 
 # Setup USB Drive
 sudo mkdir /media/USB_HDD
+sudo chmod 666 /dev/sda1
+sudo chmod 666 /dev/sdb2
+sudo chmod 777 /media/USB_HDD
+sudo chmod 777 /media/HOME_SERVER
+sudo chmod 1755 /sbin/mount.ntfs-3g /usr/bin/ntfs-3g
+
 sudo echo "
 UUID=AE727DA7727D7545 /media/USB_HDD  ntfs   defaults       	0   	0" >> /etc/fstab
+
+
 sudo mount -a
 
 # Setup Samba Server
