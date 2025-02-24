@@ -114,7 +114,8 @@ sudo echo "
 set -e
 sudo apt-get update
 sudo apt-get upgrade
-sudo apt-get dist-upgrade" > ~/update.sh
+sudo apt-get dist-upgrade
+sudo apt autoremove" > ~/update.sh
 
 #Alias for fun
 #sudo echo "alias update='yes | sudo ~/update.sh && sudo rm -r ~/etc-pihole/pihole-FTL.db && sudo reboot'" >> ~/.bashrc
