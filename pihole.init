@@ -112,10 +112,10 @@ spindown_time = 120
 sudo echo "
 #!/bin/bash
 set -e
-sudo apt-get update
-sudo apt-get upgrade
-sudo apt-get dist-upgrade
-sudo apt autoremove" > ~/update.sh
+sudo apt-get update --yes
+sudo apt-get upgrade --yes
+sudo apt-get dist-upgrade --yes
+sudo apt autoremove --yes" > ~/update.sh
 
 #Alias for fun
 #sudo echo "alias update='yes | sudo ~/update.sh && sudo rm -r ~/etc-pihole/pihole-FTL.db && sudo reboot'" >> ~/.bashrc
