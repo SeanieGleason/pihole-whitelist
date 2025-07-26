@@ -16,3 +16,4 @@
 # Regular Expressions:
 
 ^ads-[a-z]-darwin\.hulustream\.com$
+^imasdk\.googleapis\.com$
