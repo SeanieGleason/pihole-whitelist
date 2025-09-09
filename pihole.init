@@ -134,15 +134,29 @@ brew upgrade
 brew install yarn
 brew install git
 brew install node
+brew install nvm
 
-sudo echo "
+sudo sh -c 'echo "
+cat << 'EOF' >> ~/.bashrc
+
+export NVM_DIR="$HOME/.nvm"
+[ -s "/home/linuxbrew/.linuxbrew/opt/nvm/nvm.sh" ] && \. "/home/linuxbrew/.linuxbrew/opt/nvm/nvm.sh"  # This loads nvm
+[ -s "/home/linuxbrew/.linuxbrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/home/linuxbrew/.linuxbrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
+
+EOF
+
+nvm install 19
+
+# Install save-file-converter
+cat << 'EOF' > ~/serve.sh
 #!/bin/bash
 set -e
 rm -rf ~/save-file-converter
 git clone git@github.com:SeanieGleason/save-file-converter.git
 cd save-file-converter/frontend
 yarn install
-yarn serve-in-pi" > ~/serve.sh
+yarn serve-in-pi
+EOF
 
 sudo chmod +x ~/serve.sh
 
