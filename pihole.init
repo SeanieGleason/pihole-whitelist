@@ -155,7 +155,7 @@ rm -rf ~/save-file-converter
 git clone git@github.com:SeanieGleason/save-file-converter.git
 cd save-file-converter/frontend
 yarn install
-yarn serve-in-pi
+yarn serve
 EOF
 
 sudo chmod +x ~/serve.sh
