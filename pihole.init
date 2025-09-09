@@ -130,9 +130,10 @@ brew install gcc
 brew update
 brew upgrade
 
-#Install yarn & git
+#Install yarn & git & node
 brew install yarn
 brew install git
+brew install node
 
 sudo echo "
 #!/bin/bash
