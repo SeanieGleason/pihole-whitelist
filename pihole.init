@@ -161,7 +161,7 @@ EOF
 sudo chmod +x ~/serve.sh
 
 #Alias for fun
-sudo echo "alias server='sudo ~/serve.sh'" >> ~/.bashrc
+sudo echo "alias serve='sudo ~/serve.sh'" >> ~/.bashrc
 
 
 
