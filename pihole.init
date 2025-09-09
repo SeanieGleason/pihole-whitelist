@@ -118,9 +118,35 @@ sudo apt-get dist-upgrade --yes
 sudo apt autoremove --yes" > ~/update.sh
 
 #Alias for fun
-#sudo echo "alias update='yes | sudo ~/update.sh && sudo rm -r ~/etc-pihole/pihole-FTL.db && sudo reboot'" >> ~/.bashrc
+sudo echo "alias update='yes | sudo ~/update.sh && sudo rm -r ~/etc-pihole/pihole-FTL.db && sudo reboot'" >> ~/.bashrc
 
+#Install brew
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+echo >> /home/pi/.bashrc
+echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/pi/.bashrc
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+sudo apt-get install build-essential
+brew install gcc
+brew update
+brew upgrade
 
+#Install yarn & git
+brew install yarn
+brew install git
+
+sudo echo "
+#!/bin/bash
+set -e
+rm -rf ~/save-file-converter
+git clone git@github.com:SeanieGleason/save-file-converter.git
+cd save-file-converter/frontend
+yarn install
+yarn serve-in-pi" > ~/serve.sh
+
+sudo chmod +x ~/serve.sh
+
+#Alias for fun
+sudo echo "sudo ~/serve.sh" >> ~/.bashrc
 
 
 
