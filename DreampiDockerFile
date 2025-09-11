@@ -1,0 +1,104 @@
+FROM debian:bullseye
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Add armhf support
+RUN dpkg --add-architecture armhf && apt-get update && apt-get --fix-missing -y install
+
+# Install base dependencies
+RUN apt-get install -y \
+    curl git sudo systemd ppp dnsmasq ser2net \
+    python3 python3-pip \
+    libcap2-bin
+
+# Clone DreamPi repo (Python 3 branch)
+RUN git clone https://github.com/Kazade/dreampi.git /opt/dreampi && \
+    cd /opt/dreampi && \
+    git checkout python3
+
+# Copy pre-downloaded armhf .deb files (required for ppp etc.)
+COPY arm/*.deb /opt/dreampi/arm/
+RUN dpkg -i /opt/dreampi/arm/*.deb || apt-get -f -y install
+
+# Install Python dependencies
+WORKDIR /opt/dreampi
+RUN curl -O https://raw.githubusercontent.com/sairuk/dreampi/master/requirements.txt && \
+    if [ ! -f /usr/lib/python3*/EXTERNALLY-MANAGED ]; then \
+        python3 -m pip install -r requirements.txt; \
+    else \
+        apt-get install -y python3-serial python3-sh python3-iptables python3-miniupnpc && \
+        python3 -m pip install http-server-base --break-system-packages; \
+    fi
+
+# Install DreamPi files
+RUN mkdir -p /usr/local/share/dreampi && \
+    cp -f *.py dial-tone.wav /usr/local/share/dreampi && \
+    ln -sf /usr/local/share/dreampi/dreampi.py /usr/local/bin/dreampi && \
+    chown -R root:root /usr/local/share/dreampi
+
+# Install startup scripts
+RUN cp -f etc/init.d/dreampi /etc/init.d/ && \
+    cp -f etc/systemd/system/dreampi.service /etc/systemd/system/ && \
+    chmod +x /etc/init.d/dreampi
+
+# Setup PPP device
+RUN mknod /dev/ppp c 108 0 || true
+
+EXPOSE 4711
+
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+
+
+
+
+
+version: '3.8'
+
+services:
+  dreampi:
+    build: .
+    container_name: dreampi
+    restart: unless-stopped
+    privileged: true
+    devices:
+      - /dev/ppp
+      - /dev/ttyUSB0
+    ports:
+      - "4711:4711"
+    volumes:
+      - dreampi_data:/usr/local/share/dreampi
+
+volumes:
+  dreampi_data:
+
+
+
+
+dreampi-docker/
+├── Dockerfile
+├── docker-compose.yml
+├── entrypoint.sh
+├── arm/
+│   ├── ppp.deb
+│   ├── dnsmasq.deb
+│   └── etc...        ← All required .deb files
+
+
+
+
+#!/bin/bash
+set -e
+
+# Start DreamPi manually (no full systemd in Docker)
+echo "Starting DreamPi service..."
+/etc/init.d/dreampi start
+
+# Keep container running
+tail -f /var/log/syslog
+
+
+
+
