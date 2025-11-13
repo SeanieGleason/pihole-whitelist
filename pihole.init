@@ -1,167 +1,209 @@
-# Add Docker's official GPG key:
-sudo apt-get update
-sudo apt-get install ca-certificates curl gnupg
-sudo install -m 0755 -d /etc/apt/keyrings
-curl -fsSL https://download.docker.com/linux/raspbian/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-sudo chmod a+r /etc/apt/keyrings/docker.gpg
+################################################################################
+# Install Docker                                                               #
+################################################################################
+function installDocker() {
+  
+  sudo apt update
+  sudo apt install ca-certificates curl
+  sudo install -m 0755 -d /etc/apt/keyrings
+  sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+  sudo chmod a+r /etc/apt/keyrings/docker.asc
+  
+  # Add the repository to Apt sources:
+  sudo tee /etc/apt/sources.list.d/docker.sources <<EOF
+Types: deb
+URIs: https://download.docker.com/linux/debian
+Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")
+Components: stable
+Signed-By: /etc/apt/keyrings/docker.asc
+EOF
 
-# Set up Docker's APT repository:
-echo \
-  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/raspbian \
-  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-sudo apt-get update
-sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+  sudo apt-get update
+  sudo apt-get install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-# Set up docker on startup
-sudo systemctl enable docker
+  # Set up docker on startup
+  sudo systemctl enable docker
 
-# Set up docker-compose
-sudo echo "version: \"3\"
+}
+
+installHDParm {
+  sudo apt-get install hdparm -y
+  sudo hdparm -I /dev/sda1 | grep 'Write cache'
+  sudo tee -a /etc/hdparm.conf > /dev/null <<'EOF'
+  
+  /dev/sda1 {
+      write_cache = on
+      spindown_time = 120
+  }
+  EOF
+
+}
+
+function installPiHole(){
+  sudo tee docker-compose.yaml > /dev/null <<'EOF'
+version: "3"
 
 services:
- pihole:
-   container_name: pihole
-   image: jacklul/pihole:latest
-   ports:
-     - "53:53/tcp"
-     - "53:53/udp"
-     - "67:67/udp"
-     - "80:80/tcp"
-   restart: always
-   environment:
-     WEBPASSWORD: ''
-     PIHOLE_DNS_: '1.1.1.1;1.0.0.1'
-     REV_SERVER: true
-     REV_SERVER_CIDR: '192.168.0.0/24'
-     REV_SERVER_TARGET: '192.168.0.1'
-     ADLISTS_URL: 'https://v.firebog.net/hosts/lists.php?type=tick'
-     WHITELIST_URL: ‘https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/whitelist.txt'
-     REGEX_WHITELIST_URL: ‘https://raw.githubusercontent.com/SeanieGleason/pihole-whitelist/master/domains/whitelist-regex.list'
-     #BLACKLIST_URL: ''
-     REGEX_BLACKLIST_URL: 'https://raw.githubusercontent.com/mmotti/pihole-regex/master/regex.list'
+  pihole:
+    container_name: pihole
+    image: jacklul/pihole:latest
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+      - "80:80/tcp"
+    restart: always
+    environment:
+      WEBPASSWORD: ''
+      PIHOLE_DNS_: '1.1.1.1;1.0.0.1'
+      REV_SERVER: true
+      REV_SERVER_CIDR: '192.168.0.0/24'
+      REV_SERVER_TARGET: '192.168.0.1'
+      ADLISTS_URL: 'https://v.firebog.net/hosts/lists.php?type=tick'
+      WHITELIST_URL: 'https://raw.githubusercontent.com/anudeepND/whitelist/master/domains/whitelist.txt'
+      REGEX_WHITELIST_URL: 'https://raw.githubusercontent.com/SeanieGleason/pihole-whitelist/master/domains/whitelist-regex.list'
+      #BLACKLIST_URL: ''
+      REGEX_BLACKLIST_URL: 'https://raw.githubusercontent.com/mmotti/pihole-regex/master/regex.list'
 
-   volumes:
-     - './etc-pihole/:/etc/pihole/'
-     - './etc-dnsmasq.d/:/etc/dnsmasq.d/'
-     # If you need advanced configuration create a mount to access the config file:
-     #- './etc-pihole-updatelists/:/etc/pihole-updatelists/'
-   cap_add:
-     - NET_ADMIN" > docker-compose.yaml
+    volumes:
+      - './etc-pihole/:/etc/pihole/'
+      - './etc-dnsmasq.d/:/etc/dnsmasq.d/'
+      # If you need advanced configuration create a mount to access the config file:
+      #- './etc-pihole-updatelists/:/etc/pihole-updatelists/'
+    cap_add:
+      - NET_ADMIN
+EOF
 
-sudo chmod +x docker-compose.yaml
+  sudo chmod +x docker-compose.yaml
+  sudo docker compose up -d
 
-sudo docker compose up -d
+}
 
-#Prevent DNS from updating
-sudo echo "nameserver 192.168.0.1" > /etc/resolv.conf
-sudo chattr +i /etc/resolv.conf
+function preventDNSUpdate {
+  sudo echo "nameserver 192.168.0.1" > /etc/resolv.conf
+  sudo chattr +i /etc/resolv.conf
 
-# Setup USB Drive
-sudo mkdir /media/USB_HDD
-sudo chmod 666 /dev/sda1
-sudo chmod 666 /dev/sdb2
-sudo chmod 777 /media/USB_HDD
-sudo chmod 777 /media/HOME_SERVER
-sudo chmod 1755 /sbin/mount.ntfs-3g /usr/bin/ntfs-3g
+}
 
-sudo echo "
-UUID=AE727DA7727D7545 /media/USB_HDD  ntfs   defaults       	0   	0" >> /etc/fstab
+function setUSBDrive {
+  sudo apt install ntfs-3g
 
+  # Find the most recently added USB storage device (excluding internal drives)
+  USB_DEV=$(lsblk -o NAME,TRAN | awk '$2=="usb" {print "/dev/"$1}' | head -n 1)
+  if [ -z "$USB_DEV" ]; then
+    echo "No USB device detected."
+    exit 1
+  fi
 
-sudo mount -a
+  sudo chmod 666 "$USB_DEV"
 
-# Setup Samba Server
-sudo apt install samba
+  sudo mkdir -p /media/USB_HDD
+  sudo chmod 777 /media/USB_HDD
+  sudo chmod 1755 /sbin/mount.ntfs-3g /usr/bin/ntfs-3g
 
-sudo sed '/^\[global\]/a\access based share enum = yes' /etc/samba/smb.conf
+  UUID=$(sudo blkid -s UUID -o value "$USB_DEV")
+  echo "UUID=$UUID /media/USB_HDD ntfs defaults 0 0" | sudo tee -a /etc/fstab > /dev/null
+  sudo mount -a
 
-sudo echo "
+}
+
+function installSamba {
+  sudo apt install samba
+  sudo sed '/^\[global\]/a\access based share enum = yes' /etc/samba/smb.conf
+  sudo tee -a /etc/samba/smb.conf > /dev/null <<'EOF'
 
 [alt]
-path = \"/media/USB_HDD/.alt/\"
+path = /media/USB_HDD/.alt/
 public = no
-writeable = yes
+writable = yes
 guest ok = no
 create mask = 0777
 directory mask = 0777
 valid users = pi
 browseable = yes
+
 [public]
-path = \"/media/USB_HDD/public\"
-writeable = yes
+path = /media/USB_HDD/public
+writable = yes
 guest ok = yes
 create mask = 0777
 directory mask = 0777
-force user = pi" >> /etc/samba/smb.conf
+force user = pi
+EOF
 
-smbpasswd -a pi
+  sudo smbpasswd -a pi
 
-sudo apt-get install hdparm -y
+}
 
-sudo hdparm -I /dev/sda1 | grep 'Write cache'
-
-# Check that has '*' before 'Write cache'
-sudo echo "
-
-/dev/sda1 {
-write_cache = on
-spindown_time = 120
-}" >> /etc/hdparm.conf
-
-sudo echo "
+function setupUpdateCommand {
+  cat > ~/update.sh <<'EOF'
 #!/bin/bash
 set -e
 sudo apt-get update --yes
 sudo apt-get upgrade --yes
 sudo apt-get dist-upgrade --yes
-sudo apt autoremove --yes" > ~/update.sh
-
-#Alias for fun
-sudo echo "alias update='yes | sudo ~/update.sh && sudo rm -r ~/etc-pihole/pihole-FTL.db && sudo reboot'" >> ~/.bashrc
-
-#Install brew
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-echo >> /home/pi/.bashrc
-echo 'eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"' >> /home/pi/.bashrc
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-sudo apt-get install build-essential
-brew install gcc
-brew update
-brew upgrade
-
-#Install yarn & git & node
-brew install yarn
-brew install git
-brew install node
-brew install nvm
-
-sudo sh -c 'echo "
-cat << 'EOF' >> ~/.bashrc
-
-export NVM_DIR="$HOME/.nvm"
-[ -s "/home/linuxbrew/.linuxbrew/opt/nvm/nvm.sh" ] && \. "/home/linuxbrew/.linuxbrew/opt/nvm/nvm.sh"  # This loads nvm
-[ -s "/home/linuxbrew/.linuxbrew/opt/nvm/etc/bash_completion.d/nvm" ] && \. "/home/linuxbrew/.linuxbrew/opt/nvm/etc/bash_completion.d/nvm"  # This loads nvm bash_completion
-
+sudo apt autoremove --yes
 EOF
+  chmod +x ~/update.sh
 
-nvm install 19
+  sudo echo "alias update='yes | sudo ~/update.sh && sudo rm -r ~/etc-pihole/pihole-FTL.db && sudo reboot'" >> ~/.bashrc
 
-# Install save-file-converter
-cat << 'EOF' > ~/serve.sh
-#!/bin/bash
-set -e
-rm -rf ~/save-file-converter
-git clone git@github.com:SeanieGleason/save-file-converter.git
-cd save-file-converter/frontend
-yarn install
-yarn serve
-EOF
+}
 
-sudo chmod +x ~/serve.sh
+function installNVM {
+  sudo apt update && \
+  sudo apt install -y git nodejs npm && \
+  sudo npm install -g yarn && \
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.8/install.sh | bash && \
+  export NVM_DIR="$HOME/.nvm" && \
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
 
-#Alias for fun
+  # Append NVM setup to .bashrc safely as root
+  sudo tee -a /home/pi/.bashrc > /dev/null <<'EOF'
+  
+  export NVM_DIR="$HOME/.nvm"
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+  [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+  
+  EOF
+  
+  # Load NVM in current shell (for current session)
+  export NVM_DIR="$HOME/.nvm"
+  [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+  
+  # Install Node 19 as the user
+  sudo -u pi nvm install 19
+
+}
+
+function installSaveFileConverter {
+  # Remove old clone if exists
+  rm -rf ~/save-file-converter
+  
+  # Clone the repository
+  git clone git@github.com:SeanieGleason/save-file-converter.git
+  
+  # Navigate to frontend and install dependencies
+  cd save-file-converter/frontend
+  yarn install
+  
+  # Serve the frontend
+  yarn serve
+  EOF
+  
+  # Make the script executable
+  sudo chmod +x ~/serve.sh
+
 sudo echo "alias serve='sudo ~/serve.sh'" >> ~/.bashrc
+}
 
-
+installDocker
+installPiHole
+preventDNSUpdate
+setUSBDrive
+installSamba
+installHDParm
+setupUpdateCommand
+installNvm
+#installSaveFileConverter
 
